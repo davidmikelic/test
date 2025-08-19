@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="hr">
+<head>
+<meta charset="UTF-8">
+<title>Recenzije - Restoran Etienne</title>
+<style>
+/* CSS kod kao prije */
+body { font-family: Arial; background: #fafafa; max-width: 800px; margin: auto; padding:20px;}
+.recenzija { background: #fff; padding: 15px; margin: 10px 0; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.15); }
+form { background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.15); margin-bottom: 20px;}
+input, textarea { width: 100%; padding: 8px; margin-bottom: 10px; border-radius:4px; border:1px solid #ccc; }
+button { background: #8b0000; color: #fff; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; }
+button:hover { background: #a52a2a; }
+
+#stars span { font-size: 24px; cursor: pointer; color: gold; transition: transform 0.2s, color 0.2s;}
+#stars span:hover, #stars span.hovered { transform: scale(1.4); color: orange;}
+</style>
+</head>
+<body>
+
+<h1>Recenzije - Restoran Etienne</h1>
+<button onclick="window.location.href='index.html'">Povratak na početnu stranicu</button>
+
+<form id="recenzijaForm">
+<input type="text" id="ime" placeholder="Vaše ime" required>
+<textarea id="tekst" rows="4" placeholder="Vaša recenzija" required></textarea>
+<label>Ocjena:</label>
+<div id="stars">
+<span data-value="1">&#9734;</span>
+<span data-value="2">&#9734;</span>
+<span data-value="3">&#9734;</span>
+<span data-value="4">&#9734;</span>
+<span data-value="5">&#9734;</span>
+</div>
+<input type="hidden" id="ocjena" value="5">
+<button type="submit">Pošalji recenziju</button>
+</form>
+
+<div id="summary"></div>
+<h2>Recenzije korisnika</h2>
+<div id="recenzijeContainer"></div>
+
+<script>
+const form = document.getElementById('recenzijaForm');
+const container = document.getElementById('recenzijeContainer');
+const summary = document.getElementById('summary');
+const stars = document.querySelectorAll('#stars span');
+const ocjenaInput = document.getElementById('ocjena');
+
+stars.forEach(star => {
+star.addEventListener('mouseover', () => highlightStars(star.getAttribute('data-value')));
+star.addEventListener('mouseout', () => highlightStars(ocjenaInput.value));
+star.addEventListener('click', () => { ocjenaInput.value = star.getAttribute('data-value'); highlightStars(ocjenaInput.value); });
+});
+
+function highlightStars(val){
+stars.forEach(star => {
+star.innerHTML = star.getAttribute('data-value') <= val ? '★' : '☆';
+if(star.getAttribute('data-value') <= val){ star.classList.add('hovered'); } else { star.classList.remove('hovered'); }
+});
+}
+
+highlightStars(ocjenaInput.value);
+
+function renderStars(n){ let s=''; for(let i=1;i<=5;i++){ s+= i<=n?'★':'☆'; } return s; }
+
+function ucitajRecenzije(){
+fetch('recenzije.php')
+.then(res => res.json())
+.then(data => {
+container.innerHTML = '';
+if(data.length===0){ summary.innerHTML="<p>Nema recenzija još.</p>"; return; }
+
+let ukupno=0; data.forEach(r=>ukupno+=parseInt(r.ocjena));
+const prosjek=(ukupno/data.length).toFixed(1);
+summary.innerHTML=`<p><strong>Ukupno recenzija:</strong> ${data.length} | <strong>Prosječna ocjena:</strong> ${renderStars(Math.round(prosjek))} (${prosjek}/5)</p>`;
+
+data.forEach(r=>{
+const date=new Date(r.datum);
+const formatted=date.getDate().toString().padStart(2,'0')+'.'+(date.getMonth()+1).toString().padStart(2,'0')+'.'+date.getFullYear()+' '+date.getHours().toString().padStart(2,'0')+':'+date.getMinutes().toString().padStart(2,'0');
+const div=document.createElement('div');
+div.className='recenzija';
+div.innerHTML=`<strong>${r.ime}</strong> (${formatted}) - Ocjena: ${renderStars(r.ocjena)}<p>${r.tekst}</p>`;
+container.appendChild(div);
+});
+});
+}
+
+form.addEventListener('submit', e=>{
+e.preventDefault();
+const ime=document.getElementById('ime').value.trim();
+const tekst=document.getElementById('tekst').value.trim();
+const ocjena=ocjenaInput.value;
+if(!ime||!tekst) return;
+
+fetch('recenzije.php',{
+method:'POST',
+headers:{'Content-Type':'application/x-www-form-urlencoded'},
+body:`ime=${encodeURIComponent(ime)}&tekst=${encodeURIComponent(tekst)}&ocjena=${ocjena}`
+}).then(res=>res.json()).then(data=>{
+if(data.status==='ok'){ form.reset(); highlightStars(5); ucitajRecenzije(); }
+});
+});
+
+ucitajRecenzije();
+</script>
+
+</body>
+</html>
